@@ -14,7 +14,7 @@ This project automates those workflows using Generative AI and
 predictive analytics while providing a centralized HR management portal.
 
 ## Demo Video
-[Watch Demo Video for the project]()
+[Watch Demo Video for the project](https://drive.google.com/file/d/1GA2-y6Qvpy7mdWA8iLHc_cyUTW3QSds7/view?usp=sharing)
 
 ## Features
 

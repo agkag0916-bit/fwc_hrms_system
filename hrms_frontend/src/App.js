@@ -14,6 +14,11 @@ function App() {
   // Feature 2 States: Interview Evaluation [cite: 87]
   const [interviewQuestion] = useState('Explain the difference between a SQL and NoSQL database.');
   const [candidateAnswer, setCandidateAnswer] = useState('');
+  const [isRecording, setIsRecording] = useState(false);
+  const [audioBlob, setAudioBlob] = useState(null);
+
+  const mediaRecorderRef = useRef(null);
+  const chunksRef = useRef([]);
   const [interviewResult, setInterviewResult] = useState(null);
 
   // Feature 3 States: Onboarding Copilot
@@ -30,53 +35,116 @@ function App() {
   const [metricsSummary, setMetricsSummary] = useState('Team Alpha: 14% absenteeism spike this month. Average employee tenure is 1.2 years. Software department feedback indicates high burnout tools.');
   const [analyticsResult, setAnalyticsResult] = useState(null);
 
+  // Multi account dashboard
+  const [userRole,setUserRole] = useState("recruiter");
+  const [dashboardData,setDashboardData] = useState(null);
+  useEffect(()=>{
+    loadDashboard();
+  },[userRole]);
+
   // API Call: Feature 1 (Resume Screening) [cite: 80]
   const handleScreening = async () => {
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    let res;
+    try {
+      let res;
 
-    if (resumeFile && jdFile) {
-      const formData = new FormData();
+      if (resumeFile && jdFile) {
+        const formData = new FormData();
 
-      formData.append("resume", resumeFile);
-      formData.append("jd", jdFile);
+        formData.append("resume", resumeFile);
+        formData.append("jd", jdFile);
 
-      res = await fetch(
-        "http://localhost:5000/api/ai/screen-resume-file",
-        {
-          method: "POST",
-          body: formData
-        }
-      );
-    } else {
-      res = await fetch(
-        "http://localhost:5000/api/ai/screen-resume",
-        {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json"
-          },
-          body: JSON.stringify({
-            resumeText,
-            jobDescription: jdText
-          })
-        }
-      );
+        res = await fetch(
+          "http://localhost:5000/api/ai/screen-resume-file",
+          {
+            method: "POST",
+            body: formData
+          }
+        );
+      } else {
+        res = await fetch(
+          "http://localhost:5000/api/ai/screen-resume",
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json"
+            },
+            body: JSON.stringify({
+              resumeText,
+              jobDescription: jdText
+            })
+          }
+        );
+      }
+
+      const data = await res.json();
+      setScreeningResult(data.evaluation);
+
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
     }
-
-    const data = await res.json();
-    setScreeningResult(data.evaluation);
-
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+  };
 
   // API Call: Feature 2 (Interview Evaluation) [cite: 87]
+  const startRecording = async () => {
+    try {
+      const stream =
+        await navigator.mediaDevices.getUserMedia({
+          audio: true
+        });
+      const recorder = new MediaRecorder(stream);
+      chunksRef.current = [];
+      recorder.ondataavailable = (e) => {
+        chunksRef.current.push(e.data);
+      };
+      recorder.onstop = () => {
+        const blob = new Blob(
+          chunksRef.current,
+          {
+            type: "audio/webm"
+          }
+        );
+        setAudioBlob(blob);
+      };
+      recorder.start();
+      mediaRecorderRef.current = recorder;
+      setIsRecording(true);
+    } catch (err) {
+      console.error(err);
+    }
+};
+
+const stopRecording = () => {
+  mediaRecorderRef.current?.stop();
+  setIsRecording(false);
+};
+
+const transcribeAudio = async () => {
+  if (!audioBlob) return;
+  const formData = new FormData();
+  formData.append(
+    "audio",
+    audioBlob,
+    "answer.webm"
+  );
+
+  const res = await fetch(
+    "http://localhost:5000/api/ai/transcribe-audio",
+    {
+      method: "POST",
+      body: formData
+    }
+  );
+
+  const data = await res.json();
+  setCandidateAnswer(
+    data.transcript
+  );
+};
+
   const handleInterviewEval = async () => {
     setLoading(true);
     try {
@@ -96,51 +164,48 @@ function App() {
 
   // API Call: Feature 3 (Onboarding Chatbot)
   const handleOnboardingChat = async () => {
+    if (!chatQuestion.trim()) return;
+    const userMessage = chatQuestion;
 
-  if (!chatQuestion.trim()) return;
+    setChatQuestion('');
+    setLoading(true);
 
-  const userMessage = chatQuestion;
+    try {
+      const res = await fetch(
+        'http://localhost:5000/api/ai/onboarding-chat',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            question: userMessage
+          })
+        }
+      );
 
-  setChatQuestion('');
-  setLoading(true);
+      const data = await res.json();
 
-  try {
-
-    const res = await fetch(
-      'http://localhost:5000/api/ai/onboarding-chat',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
+      setChatHistory(prev => [
+        ...prev,
+        {
+          type: 'user',
+          text: userMessage,
+          time: new Date().toLocaleTimeString()
         },
-        body: JSON.stringify({
-          question: userMessage
-        })
-      }
-    );
+        {
+          type: 'bot',
+          text: data.answer,
+          time: new Date().toLocaleTimeString()
+        }
+      ]);
 
-    const data = await res.json();
-
-    setChatHistory(prev => [
-      ...prev,
-      {
-        type: 'user',
-        text: userMessage,
-        time: new Date().toLocaleTimeString()
-      },
-      {
-        type: 'bot',
-        text: data.answer,
-        time: new Date().toLocaleTimeString()
-      }
-    ]);
-
-  } catch (err) {
-    console.error(err);
-  } finally {
-    setLoading(false);
-  }
-};
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // API Call: Feature 4 (Predictive Analytics)
   const handlePredictiveAnalytics = async () => {
@@ -160,6 +225,19 @@ function App() {
     }
   };
 
+  // Multi user dashboard
+  const loadDashboard = async () => {
+    try {
+      const res = await fetch(
+        `http://localhost:5000/api/ai/dashboard/${userRole}`
+      );
+      const data = await res.json();
+      setDashboardData(data);
+    } catch(err){
+      console.error(err);
+    }
+  };
+
   return (
     <div className="app-container">
       {/* Sidebar Navigation */}
@@ -169,6 +247,9 @@ function App() {
           <div className="sidebar-subtitle">AI-Powered Suite</div>
           
           <nav className="nav-menu">
+            <button onClick={() => setActiveTab("dashboard")} className={`nav-button ${activeTab === "dashboard" ? "active" : ""}`}>
+            Dashboard
+            </button>
             <button onClick={() => setActiveTab('screening')} className={`nav-button ${activeTab === 'screening' ? 'active' : ''}`}>
               📄 AI Resume Screening [cite: 80]
             </button>
@@ -194,19 +275,73 @@ function App() {
           <span className="scale-badge">Scale Ready: 5000+ Users [cite: 92]</span>
         </header>
 
-        {/* TAB 1: RESUME SCREENING */}
-        {activeTab === 'screening' && (
-  <div>
+        {activeTab === "dashboard" && (
+
+<div className="dashboard-header">
+
+  <h2 className="header-title">Personalized Dashboard</h2>
+
+  <select
+    className="role-select"
+    value={userRole}
+    onChange={(e)=>
+      setUserRole(e.target.value)
+    }
+  >
+    <option value="admin">Admin</option>
+    <option value="manager">Manager</option>
+    <option value="recruiter">Recruiter</option>
+    <option value="employee">Employee</option>
+  </select>
+
+  {dashboardData && (
 
     <div
+      className="dashboard-grid"
       style={{
-        display: 'grid',
-        gridTemplateColumns: '1fr 1fr',
-        gap: '20px',
-        marginBottom: '20px'
+        display:"grid",
+        gridTemplateColumns:
+        "repeat(2,1fr)",
+        gap:"20px",
+        marginTop:"20px"
       }}
     >
-      <div>
+
+      {Object.entries(
+        dashboardData
+      ).map(([key,value])=>(
+        <div className="dashboard-card">
+          <span className="dashboard-label">
+            {key}
+          </span>
+
+          <div className="dashboard-value">
+            {value}
+          </div>
+
+        </div>
+      ))}
+
+    </div>
+
+  )}
+
+</div>
+
+)}
+
+        {/* TAB 1: RESUME SCREENING */}
+        {activeTab === 'screening' && (
+        <div>
+          <div
+            style={{
+              display: 'grid',
+              gridTemplateColumns: '1fr 1fr',
+              gap: '20px',
+              marginBottom: '20px'
+            }}
+          >
+        <div>
         <label className="form-label">
           Upload Job Description
         </label>
@@ -378,6 +513,39 @@ function App() {
             <div className="form-group">
               <label className="form-label">Candidate Audio Transcript Reply</label>
               <textarea placeholder="Type or paste candidate audio-to-text response..." value={candidateAnswer} onChange={(e) => setCandidateAnswer(e.target.value)} className="textarea-field" style={{ height: '100px' }} />
+                <div
+  style={{
+    display: "flex",
+    gap: "10px",
+    marginTop: "10px"
+  }}
+>
+
+  {!isRecording ? (
+    <button
+      onClick={startRecording}
+      className="action-button"
+    >
+      Start Recording
+    </button>
+  ) : (
+    <button
+      onClick={stopRecording}
+      className="action-button"
+    >
+      Stop Recording
+    </button>
+  )}
+
+  <button
+    onClick={transcribeAudio}
+    disabled={!audioBlob}
+    className="action-button"
+  >
+    Generate Transcript
+  </button>
+
+</div>
             </div>
             <button onClick={handleInterviewEval} disabled={loading || !candidateAnswer} className="action-button">
               {loading ? 'Analyzing Transcript...' : 'Process Interview Evaluation'}

@@ -260,3 +260,67 @@ body {
   border-top: 1px solid #e2e8f0;
   padding-top: 16px;
 }
+
+.dashboard-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 24px;
+}
+
+.role-select {
+  padding: 10px 14px;
+  border: 1px solid #dbeafe;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 20px;
+}
+
+.dashboard-card {
+  background: white;
+  border-radius: 12px;
+  padding: 20px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+  transition: 0.3s;
+}
+
+.dashboard-card:hover {
+  transform: translateY(-3px);
+}
+
+.dashboard-label {
+  display: block;
+  font-size: 13px;
+  color: #64748b;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.dashboard-value {
+  font-size: 28px;
+  font-weight: 700;
+  color: #1e293b;
+}
+
+.risk-high {
+  color: #dc2626;
+  font-weight: 700;
+}
+
+.risk-medium {
+  color: #d97706;
+  font-weight: 700;
+}
+
+.risk-low {
+  color: #16a34a;
+  font-weight: 700;
+}

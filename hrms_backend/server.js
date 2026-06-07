@@ -4,7 +4,8 @@ require('dotenv').config();
 const app = express(); 
 app.use(cors()); 
 app.use(express.json()); 
-// 💡 HIGH-SPEED IN-MEMORY DATABASE STRUCTURE 
+
+// HIGH-SPEED IN-MEMORY DATABASE STRUCTURE 
 // Optimized to handle simulated scaling requirements natively in server RAM 
 global.db = { 
   users: [ 
@@ -33,18 +34,20 @@ global.db = {
   }; 
 
   console.log("LOADING AI ROUTES FROM:", require.resolve('./routes/aiRoutes'));
-  // Route Registration Links 
+  
+// Route Registration Links 
 const aiRoutes = require('./routes/aiRoutes'); 
 console.log(aiRoutes);
 app.use('/api/ai', aiRoutes); 
+
 // Simple Health Check Endpoint 
-app.get('/', (req, res) => { 
-  res.json(
-    { status: "online", 
+app.get('/', (req, res) => {
+  res.json({ 
+      status: "online", 
       architecture: "In-Memory Scaled Mode", 
       activeRecords: global.db.users.length 
-    }); 
   }); 
+}); 
 
 const PORT = process.env.PORT || 5000; 
 app.listen(PORT, () => { 

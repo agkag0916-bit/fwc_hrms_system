@@ -13,6 +13,9 @@ questions, and identifying employee attrition risks.
 This project automates those workflows using Generative AI and
 predictive analytics while providing a centralized HR management portal.
 
+## Demo Video
+[Watch Demo Video for the project]()
+
 ## Features
 
 ### 1. AI Resume Screening
